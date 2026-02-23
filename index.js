@@ -1,5 +1,5 @@
 import AdmZip from 'adm-zip';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 import { glob } from 'node:fs/promises';
 
@@ -15,23 +15,29 @@ async function extractDownloadAndExtractZips() {
         const html = await readFile(htmlFile, 'utf-8');
         let stripOffNumber = htmlFile.split('- ')[1]
         if(typeof(stripOffNumber) != "undefined"){
-            stripOffNumber = stripOffNumber.replace(/\s+$/, "");
+            stripOffNumber = stripOffNumber.replace(/\s+$/, "").replace(/\s/, "_");
             const match = html.match(/href=["']([^"']+)["']/i);
             
             if (match) {
                 const repoDownloadUrl = match[1] + "/archive/refs/heads/main.zip";
-                  const response = await fetch(url);
-  
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                try{
+                  const response = await fetch(repoDownloadUrl.replace(".git", ""));
 
-                    // Get data as an ArrayBuffer
-                    const arrayBuffer = await response.arrayBuffer();
-                    
-                    // Convert to a Node.js Buffer to save it to disk
-                    const buffer = Buffer.from(arrayBuffer);
-                    await writeFile('./downloaded_file.zip', buffer);
-                    
-                    console.log('Binary file saved successfully!');
+                  if (!response.ok) throw new Error(`HTTP error! file: ${repoDownloadUrl} status: ${response.status}`);
+
+                  // Get data as an ArrayBuffer
+                  const arrayBuffer = await response.arrayBuffer();
+                  
+                  // Convert to a Node.js Buffer to save it to disk
+                  const buffer = Buffer.from(arrayBuffer);
+                  const sFName = `./${firstWord}/${stripOffNumber}.zip`;
+                  await writeFile(sFName, buffer);
+                  const zip = new AdmZip(sFName);
+                  zip.extractAllTo(`./${firstWord}/${stripOffNumber}`)
+                }
+                catch (e){
+                  console.log(`${stripOffNumber} ${e.cause}\n${e.stack}`);
+                }
 
             }
 
